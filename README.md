@@ -1,8 +1,24 @@
 # 企业报销票据重复与异常风险审核 Agent
 
+![Python](https://img.shields.io/badge/Python-3.10+-blue)
+![License](https://img.shields.io/badge/License-MIT-green)
+![Workflow](https://img.shields.io/badge/Pattern-Workflow-orange)
+![Human-in-the-Loop](https://img.shields.io/badge/Safety-Human_in_the_Loop-red)
+
 一个可评测、可追溯、有人机兜底的 AI PM 作品集原型：先可靠取得票据关键字段，再用确定性规则检查批次内重复、历史重复和近似异常。
 
 > 展示的重点不是"让大模型自动审批"，而是 AI 产品经理如何设计一条有证据、能回归、失败关闭、有人接管的高风险工作流。
+
+## 目录
+
+- [业务背景](#业务背景)
+- [用户场景](#用户场景)
+- [人机方案](#人机方案)
+- [工作流](#工作流)
+- [评测与迭代](#评测与迭代)
+- [评测证据](#评测证据)
+- [数据与边界](#数据与边界)
+- [本地运行](#本地运行)
 
 ## 业务背景
 
@@ -29,11 +45,21 @@
 
 ## 工作流
 
-```text
-票据图片 → 文件哈希查重 → 二维码结构化提取（首选）
-                         ↘ OCR 降级（Tesseract）
-                         ↘ 视觉模型基线（豆包客户端，人工触发）
-        → 字段校验 → 历史台账规则 → 自动通过 / 人工复核 / 拒绝
+```mermaid
+flowchart TD
+    A[票据图片] --> B[文件哈希查重]
+    B --> C{提取路线}
+    C -->|首选| D[二维码结构化提取]
+    C -->|降级| E[Tesseract OCR]
+    C -->|人工触发| F[视觉模型基线]
+    D --> G[字段校验]
+    E --> G
+    F --> G
+    G --> H[历史台账规则]
+    H --> I{风险决策}
+    I -->|R10/R11/R20| J[拒绝]
+    I -->|R30/R00/R01| K[人工复核]
+    I -->|通过| L[自动通过]
 ```
 
 ### 风险规则
@@ -113,6 +139,19 @@ python -m pip install -r requirements.txt
 python src/audit.py --self-test
 python eval/evaluate.py
 python src/audit.py --incoming data/incoming_invoices.json --ledger data/historical_ledger.json --output examples/audit_results.json
+```
+
+运行效果：
+
+```text
+$ python src/audit.py --incoming data/incoming_invoices.json --ledger data/historical_ledger.json
+{"total": 5, "high_risk": 3, "manual_review": 4, "auto_pass": 1}
+
+IN-001 | high    | confirmed_duplicate | R10,R11 | same file hash appears 2 times; same invoice ID appears 2 times
+IN-002 | high    | confirmed_duplicate | R10,R11 | same file hash appears 2 times; same invoice ID appears 2 times
+IN-003 | high    | confirmed_duplicate | R20     | matches historical record H-001
+IN-004 | review  | needs_review        | R30     | same seller+amount within 3 days, different invoice number
+IN-005 | pass    | no_risk             | —       | no duplicate or anomaly detected
 ```
 
 真实图片端到端演示需要本地私有图片和标签，公开包不提供原图。
