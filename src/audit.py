@@ -1,3 +1,8 @@
+
+# ----------------------------------------------------------------------
+# Project created by Alaraby527 - 2026
+# Repository: github.com/Alaraby527
+# ----------------------------------------------------------------------
 """Deterministic invoice duplicate-risk checker.
 
 The LLM/OCR layer should only produce structured fields. This module owns the
